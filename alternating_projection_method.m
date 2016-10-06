@@ -38,9 +38,6 @@ plot(theta,abs(A),'r');
 hold on;
 
 for i = 0:(N-1)
-%     series_coefficients(i) = (1/number_samples)*A*exp(-1j*(i-1)*transpose(theta));
-%     series_coefficients(i) = series_coefficients(i)/abs(series_coefficients(i));
-    
     integrand = A.*exp(-1j*i*theta);
     integral_sum = 0;
     for m = 1:number_samples-1
@@ -50,10 +47,12 @@ for i = 0:(N-1)
 end
 
 B = zeros(1,number_samples);
-for i = 1:number_samples
+for i = 0:(N-1)
     % Computes the array factor for each sample point
-    B(i) = (1/N)*transpose(series_coefficients)*exp(1j*theta(i)*transpose(linspace(0,N-1,N)));
+    %A(i) = (1/N)*transpose(series_coefficients)*exp(1j*theta(i)*transpose(linspace(0,N-1,N)));
+    B = B + series_coefficients(i+1)*exp(1j*i*theta);
 end
+B = B/N;
 
 fprintf('Error is %d\n',sumsqr(abs(A-B)));
 
