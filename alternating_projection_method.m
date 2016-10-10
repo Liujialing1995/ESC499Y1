@@ -37,23 +37,40 @@ figure;
 plot(theta,abs(A),'r');
 hold on;
 
-for i = 0:(N-1)
-    integrand = A.*exp(-1j*i*theta);
-    integral_sum = 0;
-    for m = 1:number_samples-1
-        integral_sum = integral_sum + beta*d/number_samples*(integrand(m)+integrand(m+1));
-    end
-    series_coefficients(i+1) = integral_sum*N/(2*beta*d);
-end
+% % Map to N series and plot
+% for i = 0:(N-1)
+%     integrand = A.*exp(-1j*i*theta);
+%     integral_sum = 0;
+%     for m = 1:number_samples-1
+%         integral_sum = integral_sum + beta*d/number_samples*(integrand(m)+integrand(m+1));
+%     end
+%     series_coefficients(i+1) = integral_sum*N/(2*beta*d);
+% end
+% B = zeros(1,number_samples);
+% for i = 0:(N-1)
+%     % Computes the array factor for each sample point
+%     %A(i) = (1/N)*transpose(series_coefficients)*exp(1j*theta(i)*transpose(linspace(0,N-1,N)));
+%     B = B + series_coefficients(i+1)*exp(1j*i*theta);
+% end
+% B = B/N;
 
-B = zeros(1,number_samples);
-for i = 0:(N-1)
-    % Computes the array factor for each sample point
-    %A(i) = (1/N)*transpose(series_coefficients)*exp(1j*theta(i)*transpose(linspace(0,N-1,N)));
-    B = B + series_coefficients(i+1)*exp(1j*i*theta);
-end
-B = B/N;
+% % Map to any number of series and plot
+% N_augmented = 2*N;
+% derived_coeffs = zeros(N_augmented,1);
+% for i = 0:(N_augmented-1)
+%     integrand = A.*exp(-1j*i*theta);
+%     integral_sum = 0;
+%     for m = 1:number_samples-1
+%         integral_sum = integral_sum + beta*d/number_samples*(integrand(m)+integrand(m+1));
+%     end
+%     derived_coeffs(i+1) = integral_sum*N_augmented/(2*beta*d);
+% end
+% Derived_AF = zeros(1, number_samples);
+% for i = 0:(N_augmented - 1)
+%     Derived_AF = Derived_AF + derived_coeffs(i+1)*exp(1j*i*theta);
+% end
+% Derived_AF = Derived_AF/N_augmented;
 
-fprintf('Error is %d\n',sumsqr(abs(A-B)));
+fprintf('Error is %d\n',sumsqr(abs(A-Derived_AF)));
 
-plot(theta,abs(B),'b');
+plot(theta,abs(Derived_AF),'b');
