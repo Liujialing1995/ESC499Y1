@@ -58,22 +58,35 @@ axis([0 pi 0 1]);
 
 %% Method to iteratively generate the array factor
 
-iterations_limit = 1000;
+iterations_limit = 2000;
 iterations_count = 1;
+acceptance_threshold = 0.005;
 valid_yet = false;
 
-% zeroth_oldest = zeros(1,number_samples);
-% first_oldest = zeros(1,number_samples);
-% second_oldest = zeros(1,number_samples);
+%all_errors = zeros(1,iterations_limit);
 
-Derived_AF = A;
+Derived_AF = zeros(1,number_samples);
 while(~valid_yet&&(iterations_count < iterations_limit))
+    Derived_AF = zeros(1,number_samples);
+    for i = 0:(N-1)
+        % Computes the array factor for each sample point
+        Derived_AF = Derived_AF + series_coefficients(i+1)*exp(1j*i*theta);
+    end
+    Derived_AF = Derived_AF/N;
+    
     %Check for satisfying mask requirements
     if((any(abs(Derived_AF) > MASK_H) == 0)&&(any(abs(Derived_AF) < MASK_L) == 0))
         valid_yet = true;
     end
     
+    error = sumsqr(abs(Derived_AF(abs(Derived_AF) < MASK_L) - MASK_L(abs(Derived_AF) < MASK_L))) + ...
+            sumsqr(abs(Derived_AF(abs(Derived_AF) > MASK_H) - MASK_H(abs(Derived_AF) > MASK_H)));
+    if(error < acceptance_threshold)
+        break;
+    end
+    %all_errors(iterations_count) = error;
     
+    %Doesn't satisfy, then compute the series coefficients
     Derived_AF(abs(Derived_AF) > MASK_H) = MASK_H(abs(Derived_AF) > MASK_H);
     Derived_AF(abs(Derived_AF) < MASK_L) = MASK_L(abs(Derived_AF) < MASK_L);
     % Map to N series and plot
@@ -85,12 +98,7 @@ while(~valid_yet&&(iterations_count < iterations_limit))
         end
         series_coefficients(i+1) = integral_sum*N/(2*beta*d);
     end
-    Derived_AF = zeros(1,number_samples);
-    for i = 0:(N-1)
-        % Computes the array factor for each sample point
-        Derived_AF = Derived_AF + series_coefficients(i+1)*exp(1j*i*theta);
-    end
-    Derived_AF = Derived_AF/N;
+    
     
     iterations_count = iterations_count + 1;
     if(mod(iterations_count,100)==0)
