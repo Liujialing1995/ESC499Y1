@@ -7,7 +7,7 @@ d = lambda / 2;
 % All distances are in terms of lambda
 normal_feed_distance = 10 * lambda;
 
-Sources = [0];
+Sources = [0 1];
 Reflect_elements = [-5/2 -4/2 -3/2 -2/2 -1/2 0 1/2 2/2 3/2 4/2 5/2];
 
 fprintf('Generating phase matrix\n');
@@ -31,9 +31,8 @@ Theta = 2*pi*d^2/lambda .* cos(Phi);
 Basis = exp(linspace(0,length(Reflect_elements)-1,length(Reflect_elements)).' * Theta .* 1j);
 PLOT_ARRAY_FACTOR = zeros(length(Sources),resolution);
 for i = 1:length(Sources)
-    for j = 1:resolution
-        PLOT_ARRAY_FACTOR(i,j) = (C_k.' .* EFFECT_MATRIX(i,:)) * Basis(:,j);
-    end
+    PLOT_ARRAY_FACTOR(i,:) = (C_k.' .* EFFECT_MATRIX(i,:)) * Basis;
+    %PLOT_ARRAY_FACTOR(i,:) = (C_k.' ) * Basis;
 end
 PLOT_ARRAY_FACTOR = PLOT_ARRAY_FACTOR .* (1/length(Reflect_elements));
 
@@ -43,12 +42,13 @@ for i = 1:length(Sources)
     plot(Phi, abs(PLOT_ARRAY_FACTOR(i,:)), 'Color',plot_colors(i,:));
     hold on;
 end
-%axis([0 pi 0 1]);
+axis([0 pi 0 1]);
 set(gca,'xtick',0:pi/8:pi);
 set(gca,'xticklabel',{'0','pi/8','pi/4','3 pi/8','pi/2','5 pi/6','3 pi/4', '7pi/8', 'pi'});
 xlabel('Far-Field Angle (Radians)');
 ylabel('Pattern Magnitude');
 grid on;
+title('Multibeam Pattern Synthesis');
 
 % figure
 % 
