@@ -8,8 +8,6 @@ lambda = 2;
 d = lambda / 2;
 beta = 2*pi*d / lambda;
 
-N = 6;
-
 number_samples = 10000;
 
 %phi = linspace(0, 2*pi, number_samples);
@@ -18,14 +16,16 @@ theta = linspace(-beta*d,beta*d, number_samples);
 
 %series_coefficients = ones(N,1);
 % series_coefficients = zeros(N,1);
-series_coefficients = [1;1;1;1;1;1];
+series_coefficients = [1;1;1;1;1;1;1;1;1;1;1];
 direction = pi/2;
-series_coefficients = [1; ...
-                       exp(1j*-beta*d*cos(direction)); ...
-                       exp(1j*2*-beta*d*cos(direction)); ...
-                       exp(1j*3*-beta*d*cos(direction)); ...
-                       exp(1j*4*-beta*d*cos(direction)); ...
-                       exp(1j*5*-beta*d*cos(direction))];
+% series_coefficients = [1; ...
+%                        exp(1j*-beta*d*cos(direction)); ...
+%                        exp(1j*2*-beta*d*cos(direction)); ...
+%                        exp(1j*3*-beta*d*cos(direction)); ...
+%                        exp(1j*4*-beta*d*cos(direction)); ...
+%                        exp(1j*5*-beta*d*cos(direction))];
+                   
+N = length(series_coefficients);
 
 %Input requirements for the MASK
 MASK_L = zeros(1, number_samples);
@@ -63,7 +63,8 @@ iterations_count = 1;
 acceptance_threshold = 0.005;
 valid_yet = false;
 
-%all_errors = zeros(1,iterations_limit);
+all_errors_1 = zeros(1,iterations_limit);
+all_errors_2 = zeros(1,iterations_limit);
 
 Derived_AF = zeros(1,number_samples);
 while(~valid_yet&&(iterations_count < iterations_limit))
@@ -79,12 +80,20 @@ while(~valid_yet&&(iterations_count < iterations_limit))
         valid_yet = true;
     end
     
-    error = sumsqr(abs(Derived_AF(abs(Derived_AF) < MASK_L) - MASK_L(abs(Derived_AF) < MASK_L))) + ...
+    error_1 = sumsqr(abs(Derived_AF(abs(Derived_AF) < MASK_L) - MASK_L(abs(Derived_AF) < MASK_L))) + ...
             sumsqr(abs(Derived_AF(abs(Derived_AF) > MASK_H) - MASK_H(abs(Derived_AF) > MASK_H)));
-    if(error < acceptance_threshold)
+
+    error_2 = (sumsqr(abs(Derived_AF(abs(Derived_AF) < MASK_L)).^2 - abs(MASK_L(abs(Derived_AF) < MASK_L)).^2) + ...
+            sumsqr(abs(Derived_AF(abs(Derived_AF) > MASK_H)).^2 - abs(MASK_H(abs(Derived_AF) > MASK_H)).^2));
+        
+    all_errors_1(iterations_count) = error_1;
+    all_errors_2(iterations_count) = error_2;
+    if(error_2 < acceptance_threshold)
         break;
     end
-    %all_errors(iterations_count) = error;
+%     if(iterations_count > 1 && (error > all_errors(iterations_count - 1)))
+%         break;
+%     end
     
     %Doesn't satisfy, then compute the series coefficients
     Derived_AF(abs(Derived_AF) > MASK_H) = MASK_H(abs(Derived_AF) > MASK_H);
@@ -108,45 +117,30 @@ while(~valid_yet&&(iterations_count < iterations_limit))
     
 end
 %%
-% figure;
-% plot(theta,abs(A),'r');
-% hold on;
 
-% % Map to N series and plot
-% for i = 0:(N-1)
-%     integrand = A.*exp(-1j*i*theta);
-%     integral_sum = 0;
-%     for m = 1:number_samples-1
-%         integral_sum = integral_sum + beta*d/number_samples*(integrand(m)+integrand(m+1));
-%     end
-%     series_coefficients(i+1) = integral_sum*N/(2*beta*d);
-% end
-% Derived_AF = zeros(1,number_samples);
-% for i = 0:(N-1)
-%     % Computes the array factor for each sample point
-%     %A(i) = (1/N)*transpose(series_coefficients)*exp(1j*theta(i)*transpose(linspace(0,N-1,N)));
-%     Derived_AF = Derived_AF + series_coefficients(i+1)*exp(1j*i*theta);
-% end
-% Derived_AF = Derived_AF/N;
-
-% % Map to any number of series and plot
-% N_augmented = 2*N;
-% derived_coeffs = zeros(N_augmented,1);
-% for i = 0:(N_augmented-1)
-%     integrand = A.*exp(-1j*i*theta);
-%     integral_sum = 0;
-%     for m = 1:number_samples-1
-%         integral_sum = integral_sum + beta*d/number_samples*(integrand(m)+integrand(m+1));
-%     end
-%     derived_coeffs(i+1) = integral_sum*N_augmented/(2*beta*d);
-% end
-% Derived_AF = zeros(1, number_samples);
-% for i = 0:(N_augmented - 1)
-%     Derived_AF = Derived_AF + derived_coeffs(i+1)*exp(1j*i*theta);
-% end
-% Derived_AF = Derived_AF/N_augmented;
-
-% fprintf('Error is %d\n',sumsqr(abs(A-Derived_AF)));
 fprintf('Number of iterations taken: %d\n',iterations_count);
+fprintf('Final error_1: %d\n',error_1);
+fprintf('Final error_2: %d\n',error_2);
 
 plot(fliplr(acos(theta/(beta*d))),fliplr(abs(Derived_AF)),'b');
+
+figure;
+subplot(2,1,1);
+plot(all_errors_1(1:iterations_count));
+title('Error 1');
+subplot(2,1,2);
+plot(all_errors_2(1:iterations_count));
+title('Error 2');
+
+for i = 1:iterations_limit - 1
+    if(all_errors_1(i+1) > all_errors_1(i))
+        fprintf('Index %d has increasing error_1\n', i);
+        break;
+    end
+end
+for i = 1:iterations_limit - 1
+    if(all_errors_2(i+1) > all_errors_2(i))
+        fprintf('Index %d has increasing error_2\n', i);
+        break;
+    end
+end

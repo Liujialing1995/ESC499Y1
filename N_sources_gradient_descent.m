@@ -20,7 +20,7 @@ number_phases = length(X);
 N = length(X) + 1;
 
 %% Gradient descent method
-iterations_limit = 100;
+iterations_limit = 10000;
 cost_threshold = 10^-20;
 % Initial phase condition = zeros
 X_bar = zeros(number_phases, 1);
