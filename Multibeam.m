@@ -20,15 +20,16 @@ end
 
 EFFECT_MATRIX = exp(PHASE_MATRIX .* 1j);
 %% Optimizing
+resolution = 1000;
+Phi = linspace(0,pi,resolution);
+Theta = 2*pi*d^2/lambda .* cos(Phi);
+Basis = exp(linspace(0,length(Reflect_elements)-1,length(Reflect_elements)).' * Theta .* 1j);
+
 % C_k has to be the same length as Reflect_elements
 C_k = exp(1j*zeros(length(Reflect_elements),1));
 
 %% Plot results
-resolution = 1000;
 fprintf('Plotting results at resolution of %d points\n',resolution);
-Phi = linspace(0,pi,resolution);
-Theta = 2*pi*d^2/lambda .* cos(Phi);
-Basis = exp(linspace(0,length(Reflect_elements)-1,length(Reflect_elements)).' * Theta .* 1j);
 PLOT_ARRAY_FACTOR = zeros(length(Sources),resolution);
 for i = 1:length(Sources)
     PLOT_ARRAY_FACTOR(i,:) = (C_k.' .* EFFECT_MATRIX(i,:)) * Basis;
