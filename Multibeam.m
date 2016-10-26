@@ -5,30 +5,32 @@ clear all;
 lambda = 2;
 d = lambda / 2;
 % All distances are in terms of lambda
-normal_feed_distance = 10 * lambda;
+normal_feed_distance = 100 * lambda;
 
-Sources = [0 8];
+Sources = [0 3];
 Reflect_elements = [-5/2 -4/2 -3/2 -2/2 -1/2 0 1/2 2/2 3/2 4/2 5/2];
+Reflect_elements = linspace(-100/2, 100/2, 201);
 
 fprintf('Generating phase matrix\n');
 % Each row corresponds to a source
 PHASE_MATRIX = zeros(length(Sources),length(Reflect_elements));
 
 for i = 1:length(Sources)
-    PHASE_MATRIX(i,:) = sqrt((Reflect_elements - Sources(i)).^2 + ones(1,length(Reflect_elements)).*normal_feed_distance^2).*(2*pi);
+    PHASE_MATRIX(i,:) = sqrt((Reflect_elements - Sources(i)).^2 + ones(1,length(Reflect_elements)).*normal_feed_distance^2).*(2*pi)/lambda;
 end
 
 EFFECT_MATRIX = exp(PHASE_MATRIX .* 1j);
 %% Optimizing
-resolution = 1000;
+resolution = 10000;
 Phi = linspace(0,pi,resolution);
-Theta = 2*pi*d^2/lambda .* cos(Phi);
+Theta = 2*pi*d/lambda .* cos(Phi);
 Basis = exp(linspace(0,length(Reflect_elements)-1,length(Reflect_elements)).' * Theta .* 1j);
 
 % C_k has to be the same length as Reflect_elements
 C_k = exp(1j*zeros(length(Reflect_elements),1));
+C_k = exp(-1j*PHASE_MATRIX(1,:).');
 
-multibeam_error_sumsqr_points_outside_mask(MASK_LOWER, MASK_UPPER, X_, PHASE_BASIS)
+%multibeam_error_sumsqr_points_outside_mask(MASK_LOWER, MASK_UPPER, X_, PHASE_BASIS)
 
 %% Plot results
 fprintf('Plotting results at resolution of %d points\n',resolution);
