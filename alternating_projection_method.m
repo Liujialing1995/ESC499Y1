@@ -8,7 +8,7 @@ lambda = 2;
 d = lambda / 2;
 beta = 2*pi*d / lambda;
 
-number_samples = 10000;
+number_samples = 1000;
 
 %phi = linspace(0, 2*pi, number_samples);
 %theta = beta*d*cos(phi);
@@ -16,7 +16,7 @@ theta = linspace(-beta*d,beta*d, number_samples);
 
 %series_coefficients = ones(N,1);
 % series_coefficients = zeros(N,1);
-series_coefficients = [1;1;1;1;1;1;1;1;1;1;1];
+series_coefficients = [1;1;1;1;1;1;1;1;1;1;1;1;1;1;1;1];
 direction = pi/2;
 % series_coefficients = [1; ...
 %                        exp(1j*-beta*d*cos(direction)); ...
@@ -32,8 +32,8 @@ MASK_L = zeros(1, number_samples);
 MASK_H = zeros(1, number_samples);
 
 
-MASK_H(1:number_samples/2) = 0.3;
-MASK_H(number_samples/2:end) = 1;
+MASK_H(1:end) = 0.3;
+MASK_H(number_samples/2+number_samples/20:number_samples/2+number_samples/5+number_samples/8-number_samples/20) = 1;
 MASK_L(number_samples/2 + number_samples/8:number_samples/2 + number_samples/10 + number_samples/10) = 0.9;
 
 MASK_H = fliplr(MASK_H);
@@ -82,6 +82,10 @@ while(~valid_yet&&(iterations_count < iterations_limit))
     
     error_1 = sumsqr(abs(Derived_AF(abs(Derived_AF) < MASK_L) - MASK_L(abs(Derived_AF) < MASK_L))) + ...
             sumsqr(abs(Derived_AF(abs(Derived_AF) > MASK_H) - MASK_H(abs(Derived_AF) > MASK_H)));
+      
+
+    Basis = exp(linspace(0,N-1,N).' * theta .* 1j);
+    error_1 = multibeam_error_sumsqr_points_outside_mask(MASK_L, MASK_H, series_coefficients.', ones(1,N), Basis);
 
     error_2 = (sumsqr(abs(Derived_AF(abs(Derived_AF) < MASK_L)).^2 - abs(MASK_L(abs(Derived_AF) < MASK_L)).^2) + ...
             sumsqr(abs(Derived_AF(abs(Derived_AF) > MASK_H)).^2 - abs(MASK_H(abs(Derived_AF) > MASK_H)).^2));
