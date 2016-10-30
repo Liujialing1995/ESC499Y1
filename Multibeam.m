@@ -43,8 +43,97 @@ C_k = exp(1j*zeros(length(Reflect_elements),1));
 %C_k = exp(-1j*PHASE_MATRIX(1,:).');
 multibeam_error_sumsqr_points_outside_mask(MASK_L, MASK_H, C_k.', ones(1,N), Basis);
 
+% Set up parameters and configurations
+generation = 1;
+generation_limit = 100;
+population_size = 100;
+number_elites = 1;
+sub_population_size = population_size - number_elites; % Elitism preserves
+p_cross = 0.8;
+p_mutation = 0.1;
+
+% Initializing population
+P = uint16(zeros(N,population_size));  %Each column is a chromosome
+for i = 1:population_size
+    for j = 1:N
+        P(j,i) = encode_gene(2*pi*rand);
+    end
+end
+% Evaluate initial fitness
+Fitness_history = evaluatePopulationFitness(P, MASK_L, MASK_H, EFFECT_MATRIX, Basis);
+Best_fitness = max(Fitness_history);
+% Evolution cycle
+while 1
+    fprintf('Generation count: %d\n',generation);
+    if(generation > generation_limit)
+        break;
+    end
+    % Perform selection
+    Sub_population = uint16(zeros(N, sub_population_size));
+    for i = 1:floor(sub_population_size/2)*2;  % Ensures an even number for parents
+       % Select N = 2 participants, and include the fitter one in the selection 
+       ind_1 = ceil(rand*population_size);
+       ind_2 = ind_1;
+       while(ind_2 == ind_1)
+           ind_2 = ceil(rand*population_size);
+       end
+       if(evaluateFitness(P(:,ind_1),MASK_L,MASK_H,EFFECT_MATRIX,Basis) >= evaluateFitness(P(:,ind_2),MASK_L,MASK_H,EFFECT_MATRIX,Basis))
+           Sub_population(:,i) = P(:,ind_1);
+       else
+           Sub_population(:,i) = P(:,ind_2);
+       end
+    end
+    
+    % Perform crossover
+    P_prime = uint16(zeros(N,population_size));
+    for i = 1:2:(sub_population_size-1)
+        if(rand < p_cross)
+           cross_index = ceil(N*rand);
+           parent_1 = Sub_population(:,i);
+           parent_2 = Sub_population(:,i+1);
+           child_1 = parent_1(1:cross_index);
+           child_1 = [child_1; parent_2(cross_index+1 : end)];
+           child_2 = parent_2(1:cross_index);
+           child_2 = [child_2; parent_1(cross_index+1 : end)];
+           P_prime(:,i) = child_1;
+           P_prime(:,i+1) = child_2;
+        else
+           % Children do not have cross_over properties
+           P_prime(:,i) = Sub_population(:,i);
+           P_prime(:,i+1) = Sub_population(:,i+1);
+        end
+    end
+    
+    %Perform mutation
+    for i = 1:sub_population_size
+        if(rand < p_mutation)
+            mutation_index = ceil(N*rand);
+            % Bitwise-xor with a 1 in the position of the mutation flips
+            % the bit
+            mask = bitshift(uint16(1),mutation_index-1);
+            P_prime(:,i) = bitxor(P_prime(:,i),mask);
+        end
+    end
+    
+    %Preserve elitism
+    [Fittest, fittestIndices] = sort(Fitness_history(:,generation));
+    P_prime = [P_prime P(:,fittestIndices(1:number_elites))];
+    
+    
+    % Update variables
+    Fitness_history = [Fitness_history evaluatePopulationFitness(P, MASK_L, MASK_H, EFFECT_MATRIX, Basis)];
+    Best_fitness = [Best_fitness max(Fitness_history(:,generation))];
+    P = P_prime;
+    generation = generation + 1; 
+end
+
+
 
 %% Plot results
+Latest_fitness = Fitness_history(:,generation);
+max_index = find(Latest_fitness == max(Latest_fitness),1);
+C_k = arrayfun(@decode_gene,P(:,max_index));
+
 fprintf('Plotting results at resolution of %d points\n',resolution);
 PLOT_ARRAY_FACTOR = zeros(length(Sources),resolution);
 for i = 1:length(Sources)
@@ -71,6 +160,11 @@ xlabel('Far-Field Angle (Radians)');
 ylabel('Pattern Magnitude');
 grid on;
 title('Multibeam Pattern Synthesis');
+
+% Plot errors
+figure;
+plot(Best_fitness);
+grid on;
 
 % figure;
 % for i = 1:length(Sources)
