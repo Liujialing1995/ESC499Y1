@@ -32,11 +32,16 @@ Basis = exp(linspace(0,length(Reflect_elements)-1,length(Reflect_elements)).' * 
 % Mask specification
 MASK_L = zeros(1, resolution);
 MASK_H = zeros(1, resolution);
-MASK_H(1:end) = 0.3;
-MASK_H(resolution/2+resolution/20:resolution/2+resolution/5+resolution/8-resolution/20) = 1;
-MASK_L(resolution/2 + resolution/8:resolution/2 + resolution/10 + resolution/10) = 0.9;
-MASK_H = fliplr(MASK_H);
-MASK_L = fliplr(MASK_L);
+MASK_H(1:end) = 0.25;
+MASK_H(resolution/4 - floor(0.17/pi*resolution):resolution/4 + floor(0.17/pi*resolution)) = 1;
+MASK_L(resolution/4 - floor(0.0298/pi*resolution):resolution/4 + floor(0.0298/pi*resolution)) = 0.9;
+
+
+% MASK_H(1:end) = 0.3;
+% MASK_H(resolution/2+resolution/20:resolution/2+resolution/5+resolution/8-resolution/20) = 1;
+% MASK_L(resolution/2 + resolution/8:resolution/2 + resolution/10 + resolution/10) = 0.9;
+% MASK_H = fliplr(MASK_H);
+% MASK_L = fliplr(MASK_L);
 
 % C_k has to be the same length as Reflect_elements
 C_k = exp(1j*zeros(length(Reflect_elements),1));
@@ -50,7 +55,7 @@ population_size = 100;
 number_elites = 1;
 sub_population_size = population_size - number_elites; % Elitism preserves
 p_cross = 0.8;
-p_mutation = 1;
+p_mutation = 0.5;
 number_of_mutation_stages = 1;
 
 % Initializing population
@@ -65,7 +70,7 @@ Fitness_history = evaluatePopulationFitness(P, MASK_L, MASK_H, EFFECT_MATRIX, Ba
 Best_fitness = max(Fitness_history);
 % Evolution cycle
 while 1
-    if(generation > generation_limit)
+    if((Best_fitness(end) == 1) | (generation > generation_limit))
         break;
     end
     fprintf('Generation count: %d\n',generation);
@@ -130,13 +135,20 @@ while 1
     P = P_prime;
     generation = generation + 1; 
 end
-
+Latest_fitness = Fitness_history(:,generation);
+max_index = find(Latest_fitness == max(Latest_fitness),1);
+C_k_bar = exp(1j*arrayfun(@decode_gene,P(:,max_index)));
+if(Best_fitness(end) == 1)
+    fprintf('\nGlobal optimum found\n');
+end
+if(generation > generation_limit)
+    fprintf('\nGeneration limit of %d generations reached\n',generation_limit);
+    fprintf('Latest fitness score: %d\n\n',max(Latest_fitness));
+end
 
 
 %% Plot results
-Latest_fitness = Fitness_history(:,generation);
-max_index = find(Latest_fitness == max(Latest_fitness),1);
-C_k = exp(1j*arrayfun(@decode_gene,P(:,max_index)));
+
 
 % C_k(1) = 5.6076 + 0.4573i;
 % C_k(2) =   0.8085 + 2.0906i;
@@ -158,8 +170,8 @@ C_k = exp(1j*arrayfun(@decode_gene,P(:,max_index)));
 fprintf('Plotting results at resolution of %d points\n',resolution);
 PLOT_ARRAY_FACTOR = zeros(length(Sources),resolution);
 for i = 1:length(Sources)
-    PLOT_ARRAY_FACTOR(i,:) = (C_k.' .* EFFECT_MATRIX(i,:)) * Basis;
-    %PLOT_ARRAY_FACTOR(i,:) = (C_k.' ) * Basis;
+    PLOT_ARRAY_FACTOR(i,:) = (C_k_bar.' .* EFFECT_MATRIX(i,:)) * Basis;
+    %PLOT_ARRAY_FACTOR(i,:) = (C_k_bar.' ) * Basis;
 end
 PLOT_ARRAY_FACTOR = PLOT_ARRAY_FACTOR .* (1/length(Reflect_elements));
 

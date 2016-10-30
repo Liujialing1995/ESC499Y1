@@ -16,6 +16,7 @@ beta = 2*pi*d / lambda;
 % are N-1 elements because the first delay is 0 since it is relative to
 % itself
 X = [-beta*d*cos(pi/3) -beta*d*cos(pi/3) -beta*d*cos(pi/3) -beta*d*cos(pi/3) -beta*d*cos(pi/3)];
+X = zeros(1,15);
 number_phases = length(X);
 N = length(X) + 1;
 
@@ -29,7 +30,7 @@ learning_rate = 0.01;
 rate_up = 1.01;
 rate_down = 1.01;
 % Number of data points is represented by variable D
-D = 100;
+D = 1000;
 phi = linspace(0, 2*pi, D);
 
 fprintf('Beginning pre-calculation for unchanging cos and sin term\n');
