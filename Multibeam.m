@@ -25,6 +25,7 @@ end
 
 EFFECT_MATRIX = exp(PHASE_MATRIX .* 1j);
 %% Optimizing
+rng(1);
 resolution = 1000;
 Phi = linspace(0,pi,resolution);
 Theta = 2*pi*d/lambda .* cos(Phi);
@@ -36,20 +37,13 @@ MASK_H(1:end) = 0.25;
 MASK_H(resolution/4 - floor(0.17/pi*resolution):resolution/4 + floor(0.17/pi*resolution)) = 1;
 MASK_L(resolution/4 - floor(0.0298/pi*resolution):resolution/4 + floor(0.0298/pi*resolution)) = 0.9;
 
-
-% MASK_H(1:end) = 0.3;
-% MASK_H(resolution/2+resolution/20:resolution/2+resolution/5+resolution/8-resolution/20) = 1;
-% MASK_L(resolution/2 + resolution/8:resolution/2 + resolution/10 + resolution/10) = 0.9;
-% MASK_H = fliplr(MASK_H);
-% MASK_L = fliplr(MASK_L);
-
 % C_k has to be the same length as Reflect_elements
 C_k = exp(1j*zeros(length(Reflect_elements),1));
 %C_k = exp(-1j*PHASE_MATRIX(1,:).');
 multibeam_error_sumsqr_points_outside_mask(MASK_L, MASK_H, C_k.', ones(1,N), Basis);
 
 % Set up parameters and configurations
-generation = 1;
+generation = 0;
 generation_limit = 250;
 population_size = 100;
 number_elites = 1;
@@ -70,10 +64,11 @@ Fitness_history = evaluatePopulationFitness(P, MASK_L, MASK_H, EFFECT_MATRIX, Ba
 Best_fitness = max(Fitness_history);
 % Evolution cycle
 while 1
-    if((Best_fitness(end) == 1) | (generation > generation_limit))
+    if((Best_fitness(end) == 1) || (generation > generation_limit))
         break;
     end
-    fprintf('Generation count: %d\n',generation);
+    generation = generation + 1; 
+    fprintf('Generation count: %d. ',generation);
     % Perform selection
     Sub_population = uint16(zeros(N, sub_population_size));
     for i = 1:floor(sub_population_size/2)*2;  % Ensures an even number for parents
@@ -125,15 +120,15 @@ while 1
     end
     
     %Preserve elitism
-    [Fittest, fittestIndices] = sort(Fitness_history(:,generation));
+    [Fittest, fittestIndices] = sort(Fitness_history(:,generation),'descend');
     P_prime = [P_prime P(:,fittestIndices(1:number_elites))];
     
     
     % Update variables
     Fitness_history = [Fitness_history evaluatePopulationFitness(P, MASK_L, MASK_H, EFFECT_MATRIX, Basis)];
     Best_fitness = [Best_fitness max(Fitness_history(:,generation))];
+    fprintf('Best fitness: %d\n',Best_fitness(end));
     P = P_prime;
-    generation = generation + 1; 
 end
 Latest_fitness = Fitness_history(:,generation);
 max_index = find(Latest_fitness == max(Latest_fitness),1);
@@ -148,24 +143,6 @@ end
 
 
 %% Plot results
-
-
-% C_k(1) = 5.6076 + 0.4573i;
-% C_k(2) =   0.8085 + 2.0906i;
-% C_k(3) =  -1.4323 + 2.1336i;
-%   C_k(4) =-2.4042 - 0.0683i;
-%   C_k(5) =-0.9402 - 1.6320i;
-%    C_k(6) =0.6863 - 1.0806i;
-%    C_k(7) =0.6545 + 0.0556i;
-%    C_k(8) =0.0061 - 0.0123i;
-%    C_k(9) =0.2397 - 0.4879i;
-%    C_k(10) =0.7212 - 0.0577i;
-%    C_k(11) =0.2799 + 0.5458i;
-%   C_k(12) =-0.2725 + 0.3120i;
-%   C_k(13) =-0.1412 - 0.0672i;
-%    C_k(14) =0.1250 - 0.0120i;
-%  C_k(15) =  0.0870 + 0.2075i;
-% C_k(16) =  -0.0330 + 0.1384i;
 
 fprintf('Plotting results at resolution of %d points\n',resolution);
 PLOT_ARRAY_FACTOR = zeros(length(Sources),resolution);
