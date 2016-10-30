@@ -45,12 +45,13 @@ multibeam_error_sumsqr_points_outside_mask(MASK_L, MASK_H, C_k.', ones(1,N), Bas
 
 % Set up parameters and configurations
 generation = 1;
-generation_limit = 100;
+generation_limit = 250;
 population_size = 100;
 number_elites = 1;
 sub_population_size = population_size - number_elites; % Elitism preserves
 p_cross = 0.8;
-p_mutation = 0.1;
+p_mutation = 1;
+number_of_mutation_stages = 1;
 
 % Initializing population
 P = uint16(zeros(N,population_size));  %Each column is a chromosome
@@ -64,10 +65,10 @@ Fitness_history = evaluatePopulationFitness(P, MASK_L, MASK_H, EFFECT_MATRIX, Ba
 Best_fitness = max(Fitness_history);
 % Evolution cycle
 while 1
-    fprintf('Generation count: %d\n',generation);
     if(generation > generation_limit)
         break;
     end
+    fprintf('Generation count: %d\n',generation);
     % Perform selection
     Sub_population = uint16(zeros(N, sub_population_size));
     for i = 1:floor(sub_population_size/2)*2;  % Ensures an even number for parents
@@ -85,7 +86,7 @@ while 1
     end
     
     % Perform crossover
-    P_prime = uint16(zeros(N,population_size));
+    P_prime = uint16(zeros(N,sub_population_size));
     for i = 1:2:(sub_population_size-1)
         if(rand < p_cross)
            cross_index = ceil(N*rand);
@@ -103,15 +104,18 @@ while 1
            P_prime(:,i+1) = Sub_population(:,i+1);
         end
     end
+    P_prime(:,end) = Sub_population(:,end);
     
     %Perform mutation
     for i = 1:sub_population_size
         if(rand < p_mutation)
-            mutation_index = ceil(N*rand);
-            % Bitwise-xor with a 1 in the position of the mutation flips
-            % the bit
-            mask = bitshift(uint16(1),mutation_index-1);
-            P_prime(:,i) = bitxor(P_prime(:,i),mask);
+            for j = 1:number_of_mutation_stages
+                mutation_index = ceil(N*rand);
+                % Bitwise-xor with a 1 in the position of the mutation flips
+                % the bit
+                mask = bitshift(uint16(1),mutation_index-1);
+                P_prime(:,i) = bitxor(P_prime(:,i),mask);
+            end
         end
     end
     
@@ -132,7 +136,24 @@ end
 %% Plot results
 Latest_fitness = Fitness_history(:,generation);
 max_index = find(Latest_fitness == max(Latest_fitness),1);
-C_k = arrayfun(@decode_gene,P(:,max_index));
+C_k = exp(1j*arrayfun(@decode_gene,P(:,max_index)));
+
+% C_k(1) = 5.6076 + 0.4573i;
+% C_k(2) =   0.8085 + 2.0906i;
+% C_k(3) =  -1.4323 + 2.1336i;
+%   C_k(4) =-2.4042 - 0.0683i;
+%   C_k(5) =-0.9402 - 1.6320i;
+%    C_k(6) =0.6863 - 1.0806i;
+%    C_k(7) =0.6545 + 0.0556i;
+%    C_k(8) =0.0061 - 0.0123i;
+%    C_k(9) =0.2397 - 0.4879i;
+%    C_k(10) =0.7212 - 0.0577i;
+%    C_k(11) =0.2799 + 0.5458i;
+%   C_k(12) =-0.2725 + 0.3120i;
+%   C_k(13) =-0.1412 - 0.0672i;
+%    C_k(14) =0.1250 - 0.0120i;
+%  C_k(15) =  0.0870 + 0.2075i;
+% C_k(16) =  -0.0330 + 0.1384i;
 
 fprintf('Plotting results at resolution of %d points\n',resolution);
 PLOT_ARRAY_FACTOR = zeros(length(Sources),resolution);
