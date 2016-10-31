@@ -25,7 +25,7 @@ end
 
 EFFECT_MATRIX = exp(PHASE_MATRIX .* 1j);
 %% Optimizing
-rng(1);
+%rng(1); % Random seed used for debugging 
 resolution = 1000;
 Phi = linspace(0,pi,resolution);
 Theta = 2*pi*d/lambda .* cos(Phi);
@@ -40,14 +40,16 @@ MASK_L(resolution/4 - floor(0.0298/pi*resolution):resolution/4 + floor(0.0298/pi
 % C_k has to be the same length as Reflect_elements
 C_k = exp(1j*zeros(length(Reflect_elements),1));
 %C_k = exp(-1j*PHASE_MATRIX(1,:).');
-multibeam_error_sumsqr_points_outside_mask(MASK_L, MASK_H, C_k.', ones(1,N), Basis);
+%multibeam_error_sumsqr_points_outside_mask(MASK_L, MASK_H, C_k.', ones(1,N), Basis);
 
 % Set up parameters and configurations
-generation = 0;
-generation_limit = 250;
+generation = 1;
+generation_limit = 250; % Max number of runs + 1 because the first generation is the randomly initialized
 population_size = 100;
-number_elites = 1;
-sub_population_size = population_size - number_elites; % Elitism preserves
+if(mod(population_size,2) == 0) % Work with an odd number to simplify elitism selection
+    population_size = population_size + 1;
+end
+sub_population_size = floor((population_size-1)/2)*2; % Since elitism preserves 1 individual
 p_cross = 0.8;
 p_mutation = 0.5;
 number_of_mutation_stages = 1;
@@ -63,15 +65,17 @@ end
 Fitness_history = evaluatePopulationFitness(P, MASK_L, MASK_H, EFFECT_MATRIX, Basis);
 Best_fitness = max(Fitness_history);
 % Evolution cycle
+fprintf('Generation count: %d. ',generation);
+fprintf('Best fitness: %d\n',Best_fitness);
 while 1
-    if((Best_fitness(end) == 1) || (generation > generation_limit))
+    % Convergence condition
+    if((Best_fitness(end) == 1) || (generation >= generation_limit))
         break;
-    end
-    generation = generation + 1; 
-    fprintf('Generation count: %d. ',generation);
+    end 
+    
     % Perform selection
     Sub_population = uint16(zeros(N, sub_population_size));
-    for i = 1:floor(sub_population_size/2)*2;  % Ensures an even number for parents
+    for i = 1:sub_population_size;  % Ensures a largest even number for parents
        % Select N = 2 participants, and include the fitter one in the selection 
        ind_1 = ceil(rand*population_size);
        ind_2 = ind_1;
@@ -110,35 +114,37 @@ while 1
     for i = 1:sub_population_size
         if(rand < p_mutation)
             for j = 1:number_of_mutation_stages
-                mutation_index = ceil(N*rand);
+                gene_index = ceil(N*rand); % Randomly select a gene to mutate
+                mutation_index = floor(16*rand); % Since uint16 is used to represent genes
                 % Bitwise-xor with a 1 in the position of the mutation flips
                 % the bit
-                mask = bitshift(uint16(1),mutation_index-1);
-                P_prime(:,i) = bitxor(P_prime(:,i),mask);
+                mask = bitshift(uint16(1),mutation_index);
+                P_prime(gene_index,i) = bitxor(P_prime(gene_index,i),mask);
             end
         end
     end
     
     %Preserve elitism
-    [Fittest, fittestIndices] = sort(Fitness_history(:,generation),'descend');
-    P_prime = [P_prime P(:,fittestIndices(1:number_elites))];
+    fittest_index = find(Fitness_history(:,generation) == max(Fitness_history(:,generation)),1);
+    P_prime = [P_prime P(:,fittest_index)];
     
     
     % Update variables
-    Fitness_history = [Fitness_history evaluatePopulationFitness(P, MASK_L, MASK_H, EFFECT_MATRIX, Basis)];
-    Best_fitness = [Best_fitness max(Fitness_history(:,generation))];
-    fprintf('Best fitness: %d\n',Best_fitness(end));
     P = P_prime;
+    generation = generation + 1;
+    fprintf('Generation count: %d. ',generation);
+    Fitness_history = [Fitness_history evaluatePopulationFitness(P, MASK_L, MASK_H, EFFECT_MATRIX, Basis)];
+    max_index = find(Fitness_history(:,generation) == max(Fitness_history(:,generation)),1);
+    Best_fitness = [Best_fitness Fitness_history(max_index,generation)]; % The new generation's most fit
+    fprintf('Best fitness: %d\n',Best_fitness(end));
 end
-Latest_fitness = Fitness_history(:,generation);
-max_index = find(Latest_fitness == max(Latest_fitness),1);
 C_k_bar = exp(1j*arrayfun(@decode_gene,P(:,max_index)));
 if(Best_fitness(end) == 1)
     fprintf('\nGlobal optimum found\n');
 end
 if(generation > generation_limit)
     fprintf('\nGeneration limit of %d generations reached\n',generation_limit);
-    fprintf('Latest fitness score: %d\n\n',max(Latest_fitness));
+    fprintf('Latest fitness score: %d\n\n',Best_fitness(end));
 end
 
 
@@ -150,31 +156,34 @@ for i = 1:length(Sources)
     PLOT_ARRAY_FACTOR(i,:) = (C_k_bar.' .* EFFECT_MATRIX(i,:)) * Basis;
     %PLOT_ARRAY_FACTOR(i,:) = (C_k_bar.' ) * Basis;
 end
-PLOT_ARRAY_FACTOR = PLOT_ARRAY_FACTOR .* (1/length(Reflect_elements));
+PLOT_ARRAY_FACTOR = PLOT_ARRAY_FACTOR ./length(Reflect_elements);
 
 plot_colors = distinguishable_colors(length(Sources));
 figure;
 for i = 1:length(Sources)
-    plot(Phi, abs(PLOT_ARRAY_FACTOR(i,:)), 'Color',plot_colors(i,:));
-    hold on;
+    plot(Phi, abs(PLOT_ARRAY_FACTOR(i,:)), 'Color',plot_colors(i,:)); hold on;
+    plot(Phi, MASK_H, 'k'); hold on;
+    plot(Phi, MASK_L, 'k'); hold on;
 end
-
-plot(fliplr(acos(Theta/(beta*d))),fliplr(MASK_H),'k');
-hold on;
-plot(fliplr(acos(Theta/(beta*d))),fliplr(MASK_L),'k');
-hold on;
+% plot(fliplr(acos(Theta/(beta*d))),fliplr(MASK_H),'k');
+% hold on;
+% plot(fliplr(acos(Theta/(beta*d))),fliplr(MASK_L),'k');
+% hold on;
 axis([0 pi 0 1]);
 set(gca,'xtick',0:pi/8:pi);
 set(gca,'xticklabel',{'0','pi/8','pi/4','3 pi/8','pi/2','5 pi/6','3 pi/4', '7pi/8', 'pi'});
+grid on;
 xlabel('Far-Field Angle (Radians)');
 ylabel('Pattern Magnitude');
-grid on;
 title('Multibeam Pattern Synthesis');
 
 % Plot errors
 figure;
 plot(Best_fitness);
 grid on;
+xlabel('Generation Count');
+ylabel('Fitness Function');
+title('Fitness Evolution');
 
 % figure;
 % for i = 1:length(Sources)
